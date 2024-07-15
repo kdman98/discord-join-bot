@@ -75,9 +75,19 @@ async def clear_joining_waitlist(ctx: SlashContext):
     )
 
 
-@Task.create(IntervalTrigger(minutes=1))  # TODO: change to thread sleep/waking method and less search
-async def check_user_joined():
-    print("TODO HERE")
+@slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
+async def toggle_join_alert(ctx: SlashContext):
+    # TODO: only admin must use this
+    Task.start(check_user_joined(ctx.guild.id)) # WHAT?
+    await ctx.send(
+        ctx.user.mention + " toggled joining alert successfully"
+    )
+
+
+@Task.create(IntervalTrigger(minutes=5))  # TODO: change to thread sleep/waking method and less search
+async def check_user_joined(guild_uid):
+    search_user_joining_waitlist_sql(guild_uid)
+    print("check user")
 
 
 def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time):
@@ -95,10 +105,17 @@ def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time):
 def clear_joining_waitlist_sql(guild_uid):
     cursor = connection.cursor()
     cursor.execute(
-        f"DELETE FROM join_waitlist WHERE guild_uid = '{guild_uid}'")
+        f"DELETE FROM join_waitlist WHERE guild_uid = '{guild_uid}'"
+    )
     connection.commit()
 
+
 def search_user_joining_waitlist_sql(guild_uid):
+    cursor = connection.cursor()
+    member_waitlist = cursor.execute(
+        f"SELECT * FROM join_waitlist WHERE guild_uid = '{guild_uid}'"
+    )
+    return member_waitlist
 
 
 bot.start(discord_bot_token)
