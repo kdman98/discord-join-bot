@@ -1,45 +1,53 @@
 import os
-import discord
-from discord.ext import commands, tasks
-from datetime import datetime, timedelta
-import dotenv
 
-intents = discord.Intents.default()
-intents.members = True
+import dotenv
+import interactions
+from datetime import datetime
+from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger
 
 dotenv.load_dotenv()
 discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
-bot = commands.Bot(command_prefix='!', intents=intents)
 
-user_alerts = {}
+bot = interactions.Client(intents=interactions.Intents.DEFAULT)
 
-@bot.event
-async def on_ready():
-    print(f'Bot is ready as {bot.user}')
-    check_users.start()
 
-@bot.command()
-async def join(ctx, time: str):
-    user = ctx.author
-    try:
-        alert_time = datetime.strptime(time, "%H:%M").time()
-        user_alerts[user.id] = alert_time
-        await ctx.send(f'{user.mention}, you will be alerted if you are offline at {time}.')
-    except ValueError:
-        await ctx.send('Invalid time format. Please use HH:MM.')
+@interactions.listen()
+async def on_startup():
+    print("Bot is ready!")
 
-@tasks.loop(minutes=1)
-async def check_users():
-    current_time = datetime.utcnow().time()
-    for user_id, alert_time in user_alerts.items():
-        if current_time.hour == alert_time.hour and current_time.minute == alert_time.minute:
-            user = bot.get_user(user_id)
-            if user:
-                member = await bot.get_guild(1).fetch_member(user_id) # get guild..?
-                if member and not member.status == discord.Status.online:
-                    try:
-                        await user.send(f'You are offline at your scheduled time: {alert_time}')
-                    except discord.Forbidden:
-                        pass
 
-bot.run(discord_bot_token)
+# @interactions.listen(event_name=interactions.events.MessageCreate)
+# async def on_message_create(event):
+#     message_create_event = interactions.events.MessageCreate(event)
+#     print(message_create_event.message)
+
+
+@slash_command(name="joining", description="command when user is joining soon")
+@slash_option(
+    name="user",
+    description="joining user's tag",
+    required=True,
+    opt_type=OptionType.USER
+)
+@slash_option(
+    name="when",
+    description="ex) 0730 1520 2330",
+    required=True,
+    opt_type=OptionType.INTEGER
+)
+async def on_player_joining(ctx: SlashContext, user: interactions.User, when: int):
+    when_str = str(when).zfill(4)
+    joining_time = datetime.strptime(when_str, "%H%M").time()
+
+    # TODO: save DB?
+
+    await ctx.send(user.display_name + " is going to join at " + joining_time.isoformat())
+
+
+@Task.create(IntervalTrigger(minutes=1)) # TODO: change to thread sleep/waking method
+async def check_user_joined():
+
+    print("TODO HERE")
+
+
+bot.start(discord_bot_token)
