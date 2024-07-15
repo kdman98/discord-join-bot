@@ -2,24 +2,43 @@ import os
 
 import dotenv
 import interactions
-from datetime import datetime
+from datetime import datetime, timedelta
+
+import mysql.connector
+from mysql.connector import Error
 from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger
 
 dotenv.load_dotenv()
 discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
+mysql_user = os.getenv('MYSQL_DATABASE_USER')
+mysql_password = os.getenv('MYSQL_DATABASE_PASSWORD')
 
 bot = interactions.Client(intents=interactions.Intents.DEFAULT)
+
+
+# MySQL
+def create_connection():
+    try:
+        connection = mysql.connector.connect(
+            host='localhost',
+            database='im_joining_soon_bot',
+            user=mysql_user,
+            password=mysql_password,
+        )
+        if connection.is_connected():
+            print('Connected to MySQL database')
+        return connection
+    except Error as e:
+        print(f"Error: '{e}'")
+        return None
+
+
+connection = create_connection()
 
 
 @interactions.listen()
 async def on_startup():
     print("Bot is ready!")
-
-
-# @interactions.listen(event_name=interactions.events.MessageCreate)
-# async def on_message_create(event):
-#     message_create_event = interactions.events.MessageCreate(event)
-#     print(message_create_event.message)
 
 
 @slash_command(name="joining", description="command when user is joining soon")
@@ -31,7 +50,7 @@ async def on_startup():
 )
 @slash_option(
     name="when",
-    description="ex) 0730 1520 2330",
+    description="ex) 0730 1520 2330 115",
     required=True,
     opt_type=OptionType.INTEGER
 )
@@ -40,14 +59,46 @@ async def on_player_joining(ctx: SlashContext, user: interactions.User, when: in
     joining_time = datetime.strptime(when_str, "%H%M").time()
 
     # TODO: save DB?
+    add_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time)
 
-    await ctx.send(user.display_name + " is going to join at " + joining_time.isoformat())
+    await ctx.send(
+        user.mention + " is going to join at " + str(joining_time.hour).zfill(2) + ":"
+        + str(joining_time.minute).zfill(2)
+    )
 
 
-@Task.create(IntervalTrigger(minutes=1)) # TODO: change to thread sleep/waking method
+@slash_command(name="clear", description="clear joining waitlist")
+async def clear_joining_waitlist(ctx: SlashContext):
+    clear_joining_waitlist_sql(ctx.guild.id)
+    await ctx.send(
+        ctx.user.mention + " cleared joining waitlist successfully"
+    )
+
+
+@Task.create(IntervalTrigger(minutes=1))  # TODO: change to thread sleep/waking method and less search
 async def check_user_joined():
-
     print("TODO HERE")
+
+
+def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time):
+    joining_time = datetime.now().replace(hour=joining_time.hour, minute=joining_time.minute)
+    registered_time = datetime.now()
+    if joining_time.time() < datetime.now().time():
+        joining_time += timedelta(days=1)
+
+    cursor = connection.cursor()
+    cursor.execute(
+        f"INSERT INTO join_waitlist (guild_uid, user_uid, joining_time, registered_time) VALUES ('{guild_uid}', '{user_uid}', '{joining_time}', '{registered_time}')")
+    connection.commit()
+
+
+def clear_joining_waitlist_sql(guild_uid):
+    cursor = connection.cursor()
+    cursor.execute(
+        f"DELETE FROM join_waitlist WHERE guild_uid = '{guild_uid}'")
+    connection.commit()
+
+def search_user_joining_waitlist_sql(guild_uid):
 
 
 bot.start(discord_bot_token)
