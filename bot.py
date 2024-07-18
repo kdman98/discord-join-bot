@@ -13,8 +13,7 @@ discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
 mysql_user = os.getenv('MYSQL_DATABASE_USER')
 mysql_password = os.getenv('MYSQL_DATABASE_PASSWORD')
 
-bot = interactions.Client(intents=interactions.Intents.DEFAULT)
-
+bot = interactions.Client(intents=interactions.Intents.ALL, fetch_members=True)
 
 # MySQL
 def create_connection():
@@ -104,21 +103,26 @@ async def clear_joining_waitlist(ctx: SlashContext):
 @slash_command(name="list", description="list up users when they are joining")
 async def list_up_joins(ctx: SlashContext):
     waitlist = search_user_joining_waitlist_sql(ctx.guild.id)
+    waitlist = sorted(waitlist, key=lambda x: x[3])
 
-    if waitlist is None:
+    if len(waitlist) == 0:
         await ctx.send("Users not joined yet :(")
         return
 
     now = datetime.now()
     user_dict_by_id = {}
     for wait_each in waitlist:
-        if wait_each[3] not in user_dict_by_id:
+        if wait_each[2] not in user_dict_by_id:
+            # await bot.fetch_member(wait_each[2], wait_each[1]) # ignored by option for fetching all members at start
+            # might be a fix for taking too long at startup, but will await work well here?
             user_dict_by_id[wait_each[2]] = bot.get_member(wait_each[2], wait_each[1])
+
 
     sending_message = "### Online users' join list will be deleted soon after.\n\n"
     sending_message += "Nickname / Joining time / Voice Channel\n"  # TODO: to table
     sending_message += "---------------------------------------\n"  # TODO: to table
 
+    # TODO - FEAT: is the time passed? + online/offline Emote
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
         sending_message += "{}. {} / {} / {}".format(
