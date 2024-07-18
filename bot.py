@@ -109,7 +109,7 @@ async def list_up_joins(ctx: SlashContext):
         await ctx.send("Users not joined yet :(")
         return
 
-    now = datetime.now() + timedelta(hours=9)
+    now = datetime.now()
     user_dict_by_id = {}
     for wait_each in waitlist:
         if wait_each[2] not in user_dict_by_id:
