@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 import mysql.connector
 from mysql.connector import Error
 from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger, listen
-from table2ascii import table2ascii as t2a, PresetStyle
 
 dotenv.load_dotenv()
 discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
