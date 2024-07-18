@@ -120,31 +120,22 @@ async def list_up_joins(ctx: SlashContext):
             user_dict_by_id[wait_each[2]] = bot.get_member(wait_each[2], wait_each[1])
 
     sending_message = "### Online users' join list will be deleted soon after.\n"
-    body_list = []
 
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
-        body_list.append(
-            [
-                str(idx + 1),
-                user_info.display_name,
-                row[3].strftime("%H:%M"),
-                "O" if user_info.voice else "X",
-                "OK" if user_info.voice or now < row[3] else "LATE"
-            ]
+        sending_message += "{}. {} / {} / {} / {}".format(
+            idx + 1,
+            user_info.display_name,
+            row[3].strftime("%H:%M"),
+            ":white_check_mark:" if user_info.voice else ":x:",
+            ":ok:" if user_info.voice or now < row[3] else ":alarm_clock:"
         )
+        sending_message += "\n"
         if user_info.voice:
             delete_user_joining_waitlist_sql(ctx.guild.id, user_info.id)
 
-    output = t2a(
-        header=["index", "Nickname", "Joining time", "Online", "Late"],
-        body=body_list,
-        first_col_heading=True,
-        style=PresetStyle.thin_compact,
-    )
-
     await ctx.send(
-        sending_message + "```\n" + output + "\n```"
+        sending_message
     )
 
     # @slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
