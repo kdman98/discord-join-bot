@@ -41,6 +41,18 @@ async def on_startup():
     print("Bot is ready!")
 
 
+@slash_command(name="help", description="I NEED HELLLLLP")
+async def help_command(ctx: SlashContext):
+    help_message = (
+        "좋아, 우리 불쌍한 {}이를 위해 설명할테니까 잘 들어.\n"
+        "- /join (참여자) (참여시간 - 4자리 숫자) 로 언제 참여할지 설정해.\n"
+        "- /list 로 언제 누가 참여할지 확인해.\n"
+        "- /clear 를 하면 모든 리스트가 날아가. 급할때만 쓰라고.\n"
+        "초기 버전이라 기능이 완벽하지 않을 수 있으니까 뭔가 문제가 생기면 만든 사람한테 뭐라 하라고. 띨띨아."
+    ).format(ctx.user.mention)
+    await ctx.send(help_message)
+
+
 @slash_command(name="join", description="command when user is joining soon")
 @slash_option(
     name="user",
@@ -50,7 +62,7 @@ async def on_startup():
 )
 @slash_option(
     name="when",
-    description="ex) 0730 1520 2330 115",
+    description="ex) 07:30 -> 0730, 14:00 -> 1400",
     required=True,
     opt_type=OptionType.INTEGER
 )
@@ -68,9 +80,11 @@ async def on_player_joining(ctx: SlashContext, user: interactions.User, when: in
     if joining_time.time() < datetime.now().time():
         joining_time += timedelta(days=1)
 
-    if search_single_user_joining_waitlist_sql(ctx.guild.id, user.id) is None:
+    if len(search_single_user_joining_waitlist_sql(ctx.guild.id, user.id)) == 0:
+        print("add", user.display_name)
         add_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time, registered_time)
     else:
+        print("update", user.display_name)
         update_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time)
 
     await ctx.send(
@@ -81,7 +95,7 @@ async def on_player_joining(ctx: SlashContext, user: interactions.User, when: in
 
 @slash_command(name="clear", description="clear joining waitlist")
 async def clear_joining_waitlist(ctx: SlashContext):
-    clear_joining_waitlist_sql(ctx.guild.id)
+    delete_all_guild_joining_waitlist_sql(ctx.guild.id)
     await ctx.send(
         ctx.user.mention + " cleared joining waitlist successfully"
     )
@@ -114,7 +128,6 @@ async def list_up_joins(ctx: SlashContext):
         if user_info.voice:
             delete_user_joining_waitlist_sql(ctx.guild.id, user_info.id)
 
-
     await ctx.send(
         sending_message
     )
@@ -144,7 +157,7 @@ def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time, registered_
     cursor.close()
 
 
-def clear_joining_waitlist_sql(guild_uid):
+def delete_all_guild_joining_waitlist_sql(guild_uid):
     cursor = connection.cursor(buffered=True)
     cursor.execute(
         f"DELETE FROM join_waitlist WHERE guild_uid = '{guild_uid}'"
@@ -171,7 +184,6 @@ def search_single_user_joining_waitlist_sql(guild_uid, user_uid):
     )
     member_waitlist = cursor.fetchall()
     cursor.close()
-
     return member_waitlist
 
 
@@ -180,11 +192,8 @@ def update_user_joining_waitlist_sql(guild_uid, user_uid, joining_time):
     cursor.execute(
         f"UPDATE join_waitlist SET joining_time = '{joining_time}' WHERE guild_uid = '{guild_uid}' AND user_uid = '{user_uid}'"
     )
-    member_waitlist = cursor.fetchall()
     connection.commit()
     cursor.close()
-
-    return member_waitlist
 
 
 def delete_user_joining_waitlist_sql(guild_uid, user_uid):
