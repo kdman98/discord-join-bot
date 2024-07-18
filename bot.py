@@ -119,14 +119,18 @@ async def list_up_joins(ctx: SlashContext):
 
 
     sending_message = "### Online users' join list will be deleted soon after.\n\n"
-    sending_message += "Nickname / Joining time / Voice Channel\n"  # TODO: to table
+    sending_message += "Nickname / Joining time / Voice Channel / Late\n"  # TODO: to table
     sending_message += "---------------------------------------\n"  # TODO: to table
 
-    # TODO - FEAT: is the time passed? + online/offline Emote
+    # TODO - FEAT: is the time passed?
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
-        sending_message += "{}. {} / {} / {}".format(
-            idx + 1, user_info.display_name, row[3].strftime("%H:%M"), "Online" if user_info.voice else "Offline"
+        sending_message += "{}. {} / {} / {} / {}".format(
+            idx + 1,
+            user_info.display_name,
+            row[3].strftime("%H:%M"),
+            ":white_check_mark:" if user_info.voice else ":x:",
+            ":ok:" if user_info.voice or now < row[3] else ":alarm_clock:"
         )
         sending_message += "\n"
         if user_info.voice:
