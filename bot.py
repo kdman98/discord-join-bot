@@ -41,6 +41,10 @@ async def on_startup():
     print("Bot is ready!")
 
 
+@Task.create(IntervalTrigger(hours=1))
+async def keep_mysql_connection():
+    search_single_user_joining_waitlist_sql(0, 0)
+
 @slash_command(name="help", description="I NEED HELLLLLP")
 async def help_command(ctx: SlashContext):
     help_message = (
@@ -122,6 +126,7 @@ async def list_up_joins(ctx: SlashContext):
 
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
+        sending_message += "index / user / joining time / voice online / late?"
         sending_message += "{}. {} / {} / {} / {}".format(
             idx + 1,
             user_info.display_name,
