@@ -38,6 +38,7 @@ connection = create_connection()
 
 @listen(event_name=interactions.events.Startup)
 async def on_startup():
+    await keep_mysql_connection()
     print("Bot is ready!")
 
 
@@ -154,7 +155,7 @@ async def toggle_join_alert(ctx: SlashContext):
     )
 
 
-@Task.create(IntervalTrigger(minutes=5))  # TODO: change to thread sleep/waking method and less search
+@Task.create(IntervalTrigger(minutes=15))  # TODO: change to thread sleep/waking method and less search
 async def check_user_joined_with_interval(guild_uid):
     search_user_joining_waitlist_sql(guild_uid)
     print("check user")
