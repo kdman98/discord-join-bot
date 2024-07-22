@@ -32,6 +32,7 @@ handler_log.setFormatter(formatter_log)
 logger.addHandler(stream_handler)
 logger.addHandler(handler_log)
 
+
 # MySQL
 def create_connection():
     try:
@@ -57,19 +58,23 @@ async def on_startup():
     keep_mysql_connection.start()
     logging.log(level=logging.INFO, msg="Bot is ready!")
 
+
 @listen(event_name=interactions.api.events.VoiceStateUpdate)
 async def on_voice_join(event: interactions.api.events.VoiceStateUpdate):
-    if event.after.user_id == 385340402158272518: # 924841240271405136 for chipmunk
-        logging.log(level=logging.INFO, msg="hey, it joined the voice channel!")
-        if not event.bot.voice_state:
-            await event.after.channel.connect()
-            audio = AudioVolume("chipmunk_detected.mp3")
-            await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+    if event.before is None:
+        if event.after.user_id == 385340402158272518:  # 924841240271405136 for chipmunk
+            logging.log(level=logging.INFO, msg="hey, it joined the voice channel!")
+            if not event.bot.voice_state:
+                await event.after.channel.connect()
+                audio = AudioVolume("chipmunk_detected.mp3")
+                await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+
 
 @Task.create(IntervalTrigger(hours=1))
 async def keep_mysql_connection():
     logging.log(level=logging.INFO, msg="Keeping MySQL connection...")
     search_single_user_joining_waitlist_sql(0, 0)
+
 
 @slash_command(name="help", description="I NEED HELLLLLP")
 async def help_command(ctx: SlashContext):
@@ -78,7 +83,8 @@ async def help_command(ctx: SlashContext):
         "- /join (참여자) (참여시간 - 4자리 숫자) 로 언제 참여할지 설정해.\n"
         "- /list 로 언제 누가 참여할지 확인해. 이미 참가한 사람이 있다면 삭제되니까 알아둬.\n"
         "- /clear 를 하면 모든 리스트가 날아가. 급할때만 쓰라고.\n"
-        "초기 버전이라 기능이 완벽하지 않을 수 있으니까 뭔가 문제가 생기면 만든 사람한테 뭐라 하라고. 띨띨아." # TODO-fix: for local fun only lol. should be changed
+        "초기 버전이라 기능이 완벽하지 않을 수 있으니까 뭔가 문제가 생기면 만든 사람한테 뭐라 하라고. 띨띨아."
+    # TODO-fix: for local fun only lol. should be changed
     ).format(ctx.user.mention)
     await ctx.send(help_message)
 
