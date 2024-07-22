@@ -1,3 +1,4 @@
+import logging
 import os
 
 import dotenv
@@ -38,12 +39,13 @@ connection = create_connection()
 
 @listen(event_name=interactions.events.Startup)
 async def on_startup():
-    await keep_mysql_connection()
+    keep_mysql_connection.start()
     print("Bot is ready!")
 
 
 @Task.create(IntervalTrigger(hours=1))
 async def keep_mysql_connection():
+    logging.log(level=logging.INFO, msg="Keeping MySQL connection...")
     search_single_user_joining_waitlist_sql(0, 0)
 
 @slash_command(name="help", description="I NEED HELLLLLP")
