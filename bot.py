@@ -15,7 +15,21 @@ mysql_user = os.getenv('MYSQL_DATABASE_USER')
 mysql_password = os.getenv('MYSQL_DATABASE_PASSWORD')
 
 bot = interactions.Client(intents=interactions.Intents.ALL, fetch_members=True)
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s:%(message)s',
+    level=logging.INFO,
+    datefmt='%m/%d/%Y %I:%M:%S %p',
+)
+logger = logging.getLogger("bot_logger")
+stream_handler = logging.StreamHandler()
 
+formatter_log = logging.Formatter("%(asctime)s %(levelname)s:%(message)s")
+handler_log = logging.FileHandler("bot.log")
+handler_log.setLevel(logging.INFO)
+handler_log.setFormatter(formatter_log)
+
+logger.addHandler(stream_handler)
+logger.addHandler(handler_log)
 
 # MySQL
 def create_connection():
@@ -27,10 +41,10 @@ def create_connection():
             password=mysql_password,
         )
         if connection.is_connected():
-            logging.log(level=logging.DEBUG, msg="Connected to MySQL database")
+            logging.log(level=logging.INFO, msg="Connected to MySQL database")
         return connection
     except Error as e:
-        logging.log(level=logging.DEBUG, msg=f"Error: '{e}'")
+        logging.log(level=logging.CRITICAL, msg=f"Error: '{e}'")
         return None
 
 
@@ -40,12 +54,12 @@ connection = create_connection()
 @listen(event_name=interactions.api.events.Startup)
 async def on_startup():
     keep_mysql_connection.start()
-    logging.log(level=logging.DEBUG, msg="Bot is ready!")
+    logging.log(level=logging.INFO, msg="Bot is ready!")
 
 
 @Task.create(IntervalTrigger(hours=1))
 async def keep_mysql_connection():
-    logging.log(level=logging.DEBUG, msg="Keeping MySQL connection...")
+    logging.log(level=logging.INFO, msg="Keeping MySQL connection...")
     search_single_user_joining_waitlist_sql(0, 0)
 
 @slash_command(name="help", description="I NEED HELLLLLP")
@@ -88,10 +102,8 @@ async def on_player_joining(ctx: SlashContext, user: interactions.User, when: in
         joining_time += timedelta(days=1)
 
     if len(search_single_user_joining_waitlist_sql(ctx.guild.id, user.id)) == 0:
-        print("add", user.display_name)
         add_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time, registered_time)
     else:
-        print("update", user.display_name)
         update_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time)
 
     await ctx.send(
@@ -160,7 +172,6 @@ async def toggle_join_alert(ctx: SlashContext):
 @Task.create(IntervalTrigger(minutes=15))  # TODO: change to thread sleep/waking method and less search
 async def check_user_joined_with_interval(guild_uid):
     search_user_joining_waitlist_sql(guild_uid)
-    print("check user")
 
 
 def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time, registered_time):
