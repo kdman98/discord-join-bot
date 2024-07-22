@@ -63,8 +63,8 @@ async def on_startup():
 @listen(event_name=interactions.api.events.VoiceStateUpdate)
 async def on_voice_join(event: interactions.api.events.VoiceStateUpdate):
     if event.before is None:
-        if event.after.user_id != 1262266744878399519 and event.after.user_id == 924841240271405136:
-            # 924841240271405136 for chipmunk, 1262266744878399519 is bot
+        if event.after.user_id != 1262266744878399519 and event.after.user_id == 385340402158272518:
+            # 924841240271405136 for chipmunk, 1262266744878399519 is bot, 385340402158272518 is..
             logging.log(level=logging.INFO, msg="hey, it joined the voice channel!")
             if not event.bot.get_bot_voice_state(event.after.guild.id):
                 await connect_and_play_audio(event)
