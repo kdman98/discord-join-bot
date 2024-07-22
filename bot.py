@@ -138,10 +138,10 @@ async def list_up_joins(ctx: SlashContext):
             user_dict_by_id[wait_each[2]] = bot.get_member(wait_each[2], wait_each[1])
 
     sending_message = "### Online users' join list will be deleted soon after.\n"
+    sending_message += "user / joining time / voice online / late?\n"
 
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
-        sending_message += "user / joining time / voice online / late?\n"
         sending_message += "{}. {} / {} / {} / {}".format(
             idx + 1,
             user_info.display_name,
