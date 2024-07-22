@@ -62,12 +62,20 @@ async def on_startup():
 @listen(event_name=interactions.api.events.VoiceStateUpdate)
 async def on_voice_join(event: interactions.api.events.VoiceStateUpdate):
     if event.before is None:
-        if event.after.user_id == 385340402158272518:  # 924841240271405136 for chipmunk
+        if event.after.user_id != 1262266744878399519 and event.after.user_id == 385340402158272518:
+            # 924841240271405136 for chipmunk, 1262266744878399519 is bot
             logging.log(level=logging.INFO, msg="hey, it joined the voice channel!")
-            if not event.bot.voice_state:
-                await event.after.channel.connect()
-                audio = AudioVolume("chipmunk_detected.mp3")
-                await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+            if not event.bot.get_bot_voice_state(event.after.guild.id):
+                await connect_and_play_audio(event)
+
+
+async def connect_and_play_audio(event):
+    audio = AudioVolume("chipmunk_detected.mp3")
+    try:
+        await event.after.channel.connect()
+        await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+    finally:
+        event.after.channel.disconnect()
 
 
 @Task.create(IntervalTrigger(hours=1))
