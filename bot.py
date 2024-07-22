@@ -74,7 +74,7 @@ async def connect_and_play_audio(event):
     audio = AudioVolume("chipmunk_detected.mp3")
     await event.after.channel.connect()
     await bot.get_bot_voice_state(event.after.guild.id).play_no_wait(audio)
-    await asyncio.sleep(5) # TODO: any better way?
+    await asyncio.sleep(7) # TODO: any better way?
     await event.after.channel.disconnect()
 
 
