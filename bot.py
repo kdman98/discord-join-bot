@@ -27,10 +27,10 @@ def create_connection():
             password=mysql_password,
         )
         if connection.is_connected():
-            print('Connected to MySQL database')
+            logging.log(level=logging.INFO, msg="Connected to MySQL database")
         return connection
     except Error as e:
-        print(f"Error: '{e}'")
+        logging.log(level=logging.INFO, msg=f"Error: '{e}'")
         return None
 
 
@@ -40,7 +40,7 @@ connection = create_connection()
 @listen(event_name=interactions.events.Startup)
 async def on_startup():
     keep_mysql_connection.start()
-    print("Bot is ready!")
+    logging.log(level=logging.INFO, msg="Bot is ready!")
 
 
 @Task.create(IntervalTrigger(hours=1))
