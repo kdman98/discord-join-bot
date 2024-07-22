@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -73,6 +74,7 @@ async def connect_and_play_audio(event):
     audio = AudioVolume("chipmunk_detected.mp3")
     await event.after.channel.connect()
     await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+    await asyncio.sleep(5)
     await event.after.channel.disconnect()
 
 
