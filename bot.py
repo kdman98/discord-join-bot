@@ -71,11 +71,9 @@ async def on_voice_join(event: interactions.api.events.VoiceStateUpdate):
 
 async def connect_and_play_audio(event):
     audio = AudioVolume("chipmunk_detected.mp3")
-    try:
-        await event.after.channel.connect()
-        await bot.get_bot_voice_state(event.after.guild.id).play(audio)
-    finally:
-        event.after.channel.disconnect()
+    await event.after.channel.connect()
+    await bot.get_bot_voice_state(event.after.guild.id).play(audio)
+    await event.after.channel.disconnect()
 
 
 @Task.create(IntervalTrigger(hours=1))
@@ -92,7 +90,7 @@ async def help_command(ctx: SlashContext):
         "- /list 로 언제 누가 참여할지 확인해. 이미 참가한 사람이 있다면 삭제되니까 알아둬.\n"
         "- /clear 를 하면 모든 리스트가 날아가. 급할때만 쓰라고.\n"
         "초기 버전이라 기능이 완벽하지 않을 수 있으니까 뭔가 문제가 생기면 만든 사람한테 뭐라 하라고. 띨띨아."
-    # TODO-fix: for local fun only lol. should be changed
+        # TODO-fix: for local fun only lol. should be changed
     ).format(ctx.user.mention)
     await ctx.send(help_message)
 
