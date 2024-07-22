@@ -6,6 +6,7 @@ import interactions
 from datetime import datetime, timedelta
 
 import mysql.connector
+from interactions.api.voice.audio import AudioVolume
 from mysql.connector import Error
 from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger, listen
 
@@ -56,6 +57,14 @@ async def on_startup():
     keep_mysql_connection.start()
     logging.log(level=logging.INFO, msg="Bot is ready!")
 
+@listen(event_name=interactions.api.events.VoiceStateUpdate)
+async def on_voice_join(event: interactions.api.events.VoiceStateUpdate):
+    if event.after.user_id == 385340402158272518: # 924841240271405136 for chipmunk
+        logging.log(level=logging.INFO, msg="hey, it joined the voice channel!")
+        if not event.bot.voice_state:
+            await event.after.channel.connect()
+            audio = AudioVolume("chipmunk_detected.mp3")
+            await bot.get_bot_voice_state(event.after.guild.id).play(audio)
 
 @Task.create(IntervalTrigger(hours=1))
 async def keep_mysql_connection():
