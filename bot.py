@@ -27,25 +27,25 @@ def create_connection():
             password=mysql_password,
         )
         if connection.is_connected():
-            logging.log(level=logging.INFO, msg="Connected to MySQL database")
+            logging.log(level=logging.DEBUG, msg="Connected to MySQL database")
         return connection
     except Error as e:
-        logging.log(level=logging.INFO, msg=f"Error: '{e}'")
+        logging.log(level=logging.DEBUG, msg=f"Error: '{e}'")
         return None
 
 
 connection = create_connection()
 
 
-@listen(event_name=interactions.events.Startup)
+@listen(event_name=interactions.api.events.Startup)
 async def on_startup():
     keep_mysql_connection.start()
-    logging.log(level=logging.INFO, msg="Bot is ready!")
+    logging.log(level=logging.DEBUG, msg="Bot is ready!")
 
 
 @Task.create(IntervalTrigger(hours=1))
 async def keep_mysql_connection():
-    logging.log(level=logging.INFO, msg="Keeping MySQL connection...")
+    logging.log(level=logging.DEBUG, msg="Keeping MySQL connection...")
     search_single_user_joining_waitlist_sql(0, 0)
 
 @slash_command(name="help", description="I NEED HELLLLLP")
