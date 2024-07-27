@@ -14,7 +14,16 @@ discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
 mysql_user = os.getenv('MYSQL_DATABASE_USER')
 mysql_password = os.getenv('MYSQL_DATABASE_PASSWORD')
 
+
+async def fetch_all_guilds_of_bot(target_bot):
+    logging.log(level=logging.INFO, msg="Fetching all guilds")
+    for guild in target_bot.guilds:
+        await target_bot.fetch_guild(guild.id)
+
+
 bot = interactions.Client(intents=interactions.Intents.ALL, fetch_members=True)
+fetch_all_guilds_of_bot(bot)
+
 logging.basicConfig(
     format='%(asctime)s %(levelname)s:%(message)s',
     level=logging.INFO,
@@ -30,6 +39,7 @@ handler_log.setFormatter(formatter_log)
 
 logger.addHandler(stream_handler)
 logger.addHandler(handler_log)
+
 
 # MySQL
 def create_connection():
@@ -53,23 +63,19 @@ connection = create_connection()
 
 @listen(event_name=interactions.api.events.Startup)
 async def on_startup():
-    keep_mysql_connection.start()
+    check_user_joined_with_interval.start()
     logging.log(level=logging.INFO, msg="Bot is ready!")
 
-
-@Task.create(IntervalTrigger(hours=1))
-async def keep_mysql_connection():
-    logging.log(level=logging.INFO, msg="Keeping MySQL connection...")
-    search_single_user_joining_waitlist_sql(0, 0)
 
 @slash_command(name="help", description="I NEED HELLLLLP")
 async def help_command(ctx: SlashContext):
     help_message = (
-        "좋아, 우리 불쌍한 {}이를 위해 설명할테니까 잘 들어.\n"
-        "- /join (참여자) (참여시간 - 4자리 숫자) 로 언제 참여할지 설정해.\n"
-        "- /list 로 언제 누가 참여할지 확인해. 이미 참가한 사람이 있다면 삭제되니까 알아둬.\n"
-        "- /clear 를 하면 모든 리스트가 날아가. 급할때만 쓰라고.\n"
-        "초기 버전이라 기능이 완벽하지 않을 수 있으니까 뭔가 문제가 생기면 만든 사람한테 뭐라 하라고. 띨띨아." # TODO-fix: for local fun only lol. should be changed
+        "OY, I'm describing a simple using method for our PITY {}. Listen carefully.\n"
+        "- /join [@player] [joining time - four digit] to decide when to join. When you're not then, bot alerts you. "
+        "haha!\n"
+        "- /list to check who is joining when.\n"
+        "- /clear removes ALL LISTS take care.\n"
+        "this is an alpha version, so tell kdman98@naver.com if any problem occurred."
     ).format(ctx.user.mention)
     await ctx.send(help_message)
 
@@ -107,8 +113,8 @@ async def on_player_joining(ctx: SlashContext, user: interactions.User, when: in
         update_user_joining_waitlist_sql(ctx.guild.id, user.id, joining_time)
 
     await ctx.send(
-        user.mention + " is going to join at " + str(joining_time.hour).zfill(2) + ":"
-        + str(joining_time.minute).zfill(2)
+        user.mention + " joins at " + "**" + str(joining_time.hour).zfill(2) + ":"
+        + str(joining_time.minute).zfill(2) + "**"
     )
 
 
@@ -122,7 +128,7 @@ async def clear_joining_waitlist(ctx: SlashContext):
 
 @slash_command(name="list", description="list up users when they are joining")
 async def list_up_joins(ctx: SlashContext):
-    waitlist = search_user_joining_waitlist_sql(ctx.guild.id)
+    waitlist = search_user_joining_waitlist_by_guild_id_sql(ctx.guild.id)
     waitlist = sorted(waitlist, key=lambda x: x[3])
 
     if len(waitlist) == 0:
@@ -137,12 +143,12 @@ async def list_up_joins(ctx: SlashContext):
             # might be a fix for taking too long at startup, but will await work well here?
             user_dict_by_id[wait_each[2]] = bot.get_member(wait_each[2], wait_each[1])
 
-    sending_message = "### Online users' join list will be deleted soon after.\n"
+    sending_message = ""
     sending_message += "user / joining time / voice online / late?\n"
 
     for idx, row in enumerate(waitlist):
         user_info = user_dict_by_id[row[2]]
-        sending_message += "{}. {} / {} / {} / {}".format(
+        sending_message += "{}. {} / **{}** / {} / {}".format(
             idx + 1,
             user_info.display_name,
             row[3].strftime("%H:%M"),
@@ -150,28 +156,55 @@ async def list_up_joins(ctx: SlashContext):
             ":ok:" if user_info.voice or now < row[3] else ":alarm_clock:"
         )
         sending_message += "\n"
-        if user_info.voice:
-            delete_user_joining_waitlist_sql(ctx.guild.id, user_info.id)
 
     await ctx.send(
         sending_message
     )
 
-    # @slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
-    # @check(is_owner())
+
+@Task.create(IntervalTrigger(minutes=15))  # TODO: change to thread sleep/waking method and less search, with toggle
+async def check_user_joined_with_interval():
+    now = datetime.now()
+    time_passed_users_row = search_user_joining_waitlist_joining_time_passed_sql(
+        now
+    )  # TODO: guild, user, time - make it Entity
+
+    user_dict_by_id = {}
+    for row in time_passed_users_row:
+        if row[1] not in user_dict_by_id:
+            user_dict_by_id[row[1]] = bot.get_member(row[1], row[0])
+
+    grouped_users_info_by_guild = {}
+    for row in time_passed_users_row:
+        guild_uid = row[0]
+        if guild_uid not in grouped_users_info_by_guild:
+            grouped_users_info_by_guild[guild_uid] = []
+        grouped_users_info_by_guild[guild_uid].append(row)
+
+    for guild_uid, users_row in grouped_users_info_by_guild.items():
+        guild = bot.get_guild(guild_uid)
+        message = "## --- Players not joined yet (Alerts done only once) ---\n"
+        message += "User / Planned Time\n"
+        for user in users_row:
+            user_info = bot.get_member(user[1], user[0])
+            if not user_info.voice or user_info.voice.channel.guild.id != guild_uid:
+                message += "{} / **{}**\n".format(
+                    user_info.mention,
+                    user[2].strftime("%H:%M"),
+                )
+                delete_user_joining_waitlist_sql(guild_uid, user_info.id) # TODO: instead delete, add checking column
+
+        await guild.system_channel.send(message)
 
 
+# @slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
+# @check(is_owner())
 async def toggle_join_alert(ctx: SlashContext):
     # TODO: WIP
     Task.start(check_user_joined_with_interval(ctx.guild.id))  # WHAT?
     await ctx.send(
         ctx.user.mention + " toggled joining alert successfully"
     )
-
-
-@Task.create(IntervalTrigger(minutes=15))  # TODO: change to thread sleep/waking method and less search
-async def check_user_joined_with_interval(guild_uid):
-    search_user_joining_waitlist_sql(guild_uid)
 
 
 def add_user_joining_waitlist_sql(guild_uid, user_uid, joining_time, registered_time):
@@ -191,10 +224,21 @@ def delete_all_guild_joining_waitlist_sql(guild_uid):
     cursor.close()
 
 
-def search_user_joining_waitlist_sql(guild_uid):
+def search_user_joining_waitlist_joining_time_passed_sql(now):
     cursor = connection.cursor(buffered=True)
     cursor.execute(
-        f"SELECT * FROM join_waitlist WHERE guild_uid = '{guild_uid}'"
+        f"SELECT guild_uid, user_uid, joining_time FROM join_waitlist WHERE joining_time <= '{now}'"
+    )
+    member_waitlist = cursor.fetchall()
+    cursor.close()
+
+    return member_waitlist
+
+
+def search_user_joining_waitlist_by_guild_id_sql(guild_id):
+    cursor = connection.cursor(buffered=True)
+    cursor.execute(
+        f"SELECT * FROM join_waitlist WHERE guild_uid < '{guild_id}'"
     )
     member_waitlist = cursor.fetchall()
     cursor.close()
