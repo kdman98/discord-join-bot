@@ -96,7 +96,7 @@ async def help_command(ctx: SlashContext):
 async def on_player_joining(ctx: SlashContext, user: interactions.User, when: int):
     if not (0 <= when < 2400):
         await ctx.send(
-            user.mention + ", time range is out of bounds! (00:00 ~ 23:59)"
+            user.mention + ", time range is out of bounds! (00:00 ~ 23:59)" # TODO: exception 1199 0167 etc
         )
         return
     when_str = str(when).zfill(4)
@@ -169,11 +169,6 @@ async def check_user_joined_with_interval():
         now
     )  # TODO: guild, user, time - make it Entity
 
-    user_dict_by_id = {}
-    for row in time_passed_users_row:
-        if row[1] not in user_dict_by_id:
-            user_dict_by_id[row[1]] = bot.get_member(row[1], row[0])
-
     grouped_users_info_by_guild = {}
     for row in time_passed_users_row:
         guild_uid = row[0]
@@ -182,19 +177,22 @@ async def check_user_joined_with_interval():
         grouped_users_info_by_guild[guild_uid].append(row)
 
     for guild_uid, users_row in grouped_users_info_by_guild.items():
+        guild_users_count = 0
         guild = bot.get_guild(guild_uid)
         message = "## --- Players not joined yet (Alerts done only once) ---\n"
         message += "User / Planned Time\n"
         for user in users_row:
             user_info = bot.get_member(user[1], user[0])
-            if not user_info.voice or user_info.voice.channel.guild.id != guild_uid:
+            if not user_info.voice or str(user_info.voice.guild.id) != guild_uid:
                 message += "{} / **{}**\n".format(
                     user_info.mention,
                     user[2].strftime("%H:%M"),
                 )
-                delete_user_joining_waitlist_sql(guild_uid, user_info.id) # TODO: instead delete, add checking column
+                guild_users_count += 1
+            delete_user_joining_waitlist_sql(guild_uid, user_info.id) # TODO: instead delete, add checking column
 
-        await guild.system_channel.send(message)
+        if guild_users_count > 0:
+            await guild.system_channel.send(message)
 
 
 # @slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
@@ -238,7 +236,7 @@ def search_user_joining_waitlist_joining_time_passed_sql(now):
 def search_user_joining_waitlist_by_guild_id_sql(guild_id):
     cursor = connection.cursor(buffered=True)
     cursor.execute(
-        f"SELECT * FROM join_waitlist WHERE guild_uid < '{guild_id}'"
+        f"SELECT * FROM join_waitlist WHERE guild_uid = '{guild_id}'"
     )
     member_waitlist = cursor.fetchall()
     cursor.close()
