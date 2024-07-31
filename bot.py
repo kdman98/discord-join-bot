@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 
 import mysql.connector
 from mysql.connector import Error
-from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger, listen
+from interactions import slash_command, SlashContext, slash_option, OptionType, Task, IntervalTrigger, listen, check, \
+    is_owner
 
 dotenv.load_dotenv()
 discord_bot_token = os.getenv('DISCORD_BOT_TOKEN')
@@ -195,11 +196,14 @@ async def check_user_joined_with_interval():
             await guild.system_channel.send(message)
 
 
-# @slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
-# @check(is_owner())
+@slash_command(name="toggle_join_alert", description="toggle to alert user if joined in time")
+@check(interactions.is_owner())
 async def toggle_join_alert(ctx: SlashContext):
     # TODO: WIP
-    Task.start(check_user_joined_with_interval(ctx.guild.id))  # WHAT?
+    if check_user_joined_with_interval.started:
+        check_user_joined_with_interval.stop()
+    else:
+        check_user_joined_with_interval.start()
     await ctx.send(
         ctx.user.mention + " toggled joining alert successfully"
     )
